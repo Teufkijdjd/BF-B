@@ -3317,6 +3317,62 @@ spawn(function()
 	end
 end)
 
+Tabs.Sg:AddToggle("FPSBoostToggle", {
+    Title = "FpsBoost",
+    Description = "",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            task.spawn(function()
+                local g = game
+                local w = g.Workspace
+                local l = g.Lighting
+                local t = w.Terrain
+
+                pcall(function() sethiddenproperty(l, "Technology", 2) end)
+                pcall(function() sethiddenproperty(t, "Decoration", false) end)
+                
+                t.WaterWaveSize = 0
+                t.WaterWaveSpeed = 0
+                t.WaterReflectance = 0
+                t.WaterTransparency = 0
+                l.GlobalShadows = false
+                l.FogEnd = 9e9
+                l.Brightness = 0
+                
+                pcall(function() settings().Rendering.QualityLevel = "Level01" end)
+
+                for _, v in pairs(g:GetDescendants()) do
+                    pcall(function()
+                        if v:IsA("Part") or v:IsA("UnionOperation") or v:IsA("CornerWedgePart") or v:IsA("TrussPart") or v:IsA("MeshPart") then
+                            v.Material = Enum.Material.Plastic
+                            v.Reflectance = 0
+                            if v:IsA("MeshPart") then
+                                v.TextureID = "" -- ลบ Texture ออกจะช่วยลด VRAM ได้มากกว่าใส่ ID มั่ว
+                            end
+                        elseif v:IsA("Decal") or v:IsA("Texture") then
+                            v.Transparency = 1
+                        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                            v.Lifetime = NumberRange.new(0)
+                        elseif v:IsA("Explosion") then
+                            v.BlastPressure = 1
+                            v.BlastRadius = 1
+                        elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") or v:IsA("Sparkles") then
+                            v.Enabled = false
+                        end
+                    end)
+                end
+
+                for _, e in pairs(l:GetChildren()) do
+                    if e:IsA("PostProcessEffect") or e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect") or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect") then
+                        e.Enabled = false
+                    end
+                end
+                print("FPS Booster: Enabled")
+            end)
+        end
+    end
+})
 
 
 local Main = Tabs.IQ:AddSection("Auto Swords Menu")
