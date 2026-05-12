@@ -3229,97 +3229,79 @@ task.spawn(function()
     end
 end)
 
-getgenv().FastAttack = true
-getgenv().DeleteEffect = false
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
-
 local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 
-local Toggle = Tabs.Sg:AddToggle("FastAttackFix", {
-    Title = "Fast Attack (New)",
-    Description = "",
-    Default = getgenv().FastAttack,
-    Callback = function(v)
-        getgenv().FastAttack = v
-    end
-})
-
-local Toggle2 = Tabs.Sg:AddToggle("DeleteEffect", {
-    Title = "Delete Effect",
-    Description = "",
-    Default = getgenv().DeleteEffect,
-    Callback = function(v)
-        getgenv().DeleteEffect = v
-    end
-})
+getgenv().FastAttack = true
+getgenv().DeleteEffect = false
 
 local function GetRoot()
-    local Character = LocalPlayer.Character
-    if not Character then
-        return nil
-    end
-
-    return Character:FindFirstChild("HumanoidRootPart")
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart")
 end
+
+Tabs.Sg:AddToggle("FastAttackToggle", {
+    Title = "Fast Attack (New)",
+    Description = "",
+    Default = true,
+    Callback = function(Value)
+        getgenv().FastAttack = Value
+    end
+})
 
 task.spawn(function()
     while task.wait(0.1) do
-        if not getgenv().FastAttack then
-            continue
+        if getgenv().FastAttack then
+            pcall(function()  
+                local RootPart = GetRoot()  
+                if not RootPart then return end  
+
+                for _, v in pairs(workspace:WaitForChild("Enemies"):GetChildren()) do  
+                    local hum = v:FindFirstChildOfClass("Humanoid")  
+                    local hrp = v:FindFirstChild("HumanoidRootPart")  
+
+                    if hum and hrp and hum.Health > 0 then  
+                        if (hrp.Position - RootPart.Position).Magnitude < 60 then  
+                            local hitPart = v:FindFirstChild("UpperTorso") or v:FindFirstChild("Torso") or hrp  
+                            Net:WaitForChild("RE/RegisterAttack"):FireServer(0.01)  
+                            Net:WaitForChild("RE/RegisterHit"):FireServer(hitPart, {})  
+                        end  
+                    end  
+                end  
+            end)  
         end
-
-        pcall(function()
-            local RootPart = GetRoot()
-
-            if not RootPart then
-                return
-            end
-
-            for _, v in pairs(workspace:WaitForChild("Enemies"):GetChildren()) do
-                local Humanoid = v:FindFirstChildOfClass("Humanoid")
-                local HRP = v:FindFirstChild("HumanoidRootPart")
-
-                if Humanoid and HRP and Humanoid.Health > 0 then
-                    if (HRP.Position - RootPart.Position).Magnitude <= 60 then
-                        local HitPart =
-                            v:FindFirstChild("UpperTorso") or
-                            v:FindFirstChild("Torso") or
-                            HRP
-
-                        Net:WaitForChild("RE/RegisterAttack"):FireServer(0.01)
-                        Net:WaitForChild("RE/RegisterHit"):FireServer(HitPart, {})
-                    end
-                end
-            end
-        end)
     end
 end)
+
+Tabs.Sg:AddToggle("DeleteEffectToggle", {
+    Title = "Delete Effect",
+    Description = "",
+    Default = false,
+    Callback = function(Value)
+        getgenv().DeleteEffect = Value
+    end
+})
 
 task.spawn(function()
-    while task.wait(1) do
-        if not getgenv().DeleteEffect then
-            continue
+    while task.wait(0.5) do
+        if getgenv().DeleteEffect then
+            pcall(function()
+                local effectFolder = ReplicatedStorage:FindFirstChild("Effect")
+                if effectFolder and effectFolder:FindFirstChild("Container") then
+                    local respawn = effectFolder.Container:FindFirstChild("Respawn")
+                    local death = effectFolder.Container:FindFirstChild("Death")
+                    
+                    if respawn then respawn:Destroy() end
+                    if death then death:Destroy() end
+                end
+            end)
         end
-
-        pcall(function()
-            local Container = ReplicatedStorage:WaitForChild("Effect"):WaitForChild("Container")
-
-            local Respawn = Container:FindFirstChild("Respawn")
-            local Death = Container:FindFirstChild("Death")
-
-            if Respawn then
-                Respawn:Destroy()
-            end
-
-            if Death then
-                Death:Destroy()
-            end
-        end)
     end
 end)
+
 
 _G.AUTOHAKI = true
 spawn(function()
