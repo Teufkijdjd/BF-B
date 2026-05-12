@@ -3229,136 +3229,97 @@ task.spawn(function()
     end
 end)
 
-local Toggle = Tabs.Sg:AddToggle("Fast Attack (Fix)", {
-    Title = "Fast Attack (New)", 
+getgenv().FastAttack = true
+getgenv().DeleteEffect = false
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+
+local Toggle = Tabs.Sg:AddToggle("FastAttackFix", {
+    Title = "Fast Attack (New)",
     Description = "",
-    Default = true,
-    Callback = function()
-        
+    Default = getgenv().FastAttack,
+    Callback = function(v)
+        getgenv().FastAttack = v
     end
 })
-local env = (getgenv or getrenv or getfenv)()
-local rs = game:GetService("ReplicatedStorage")
-local players = game:GetService("Players")
-local client = players.LocalPlayer
-local modules = rs:WaitForChild("Modules")
-local net = modules:WaitForChild("Net")
-local charFolder = workspace:WaitForChild("Characters")
-local enemyFolder = workspace:WaitForChild("Enemies")
 
-local Module = {
-    AttackCooldown = tick()
-}
-local CachedChars = {}
-
-function Module.IsAlive(Char: Model?): boolean
-    if not Char then return nil end
-    if CachedChars[Char] then return CachedChars[Char].Health > 0 end
-
-    local Hum = Char:FindFirstChildOfClass("Humanoid")
-    CachedChars[Char] = Hum
-    return Hum and Hum.Health > 0
-end
-
-local Settings = {
-    ClickDelay = 0.01,
-    AutoClick = true
-}
-
-Module.FastAttack = (function()
-    if env._trash_attack then return env._trash_attack end
-
-    local AttackModule = {
-        NextAttack = 0,
-        Distance = 55,
-        attackMobs = true,
-        attackPlayers = true
-    }
-
-    local RegisterAttack = net:WaitForChild("RE/RegisterAttack")
-    local RegisterHit = net:WaitForChild("RE/RegisterHit")
-
-    function AttackModule:AttackEnemy(EnemyHead, Table)
-        if EnemyHead and client:DistanceFromCharacter(EnemyHead.Position) < self.Distance then
-            if not self.FirstAttack then
-                RegisterAttack:FireServer(Settings.ClickDelay or 0.125)
-                self.FirstAttack = true
-            end
-            RegisterHit:FireServer(EnemyHead, Table or {})
-        end
-    end
-
-    function AttackModule:AttackNearest()
-        local args = {nil, {}}
-        for _, Enemy in enemyFolder:GetChildren() do
-            if not args[1] and Enemy:FindFirstChild("HumanoidRootPart", true) and client:DistanceFromCharacter(Enemy.HumanoidRootPart.Position) < self.Distance then
-                args[1] = Enemy:FindFirstChild("UpperTorso")
-            elseif Enemy:FindFirstChild("HumanoidRootPart", true) and client:DistanceFromCharacter(Enemy.HumanoidRootPart.Position) < self.Distance then
-                table.insert(args[2], {
-                    [1] = Enemy,
-                    [2] = Enemy:FindFirstChild("UpperTorso")
-                })
-            end
-        end
-
-        self:AttackEnemy(unpack(args))
-
-        for _, Enemy in charFolder:GetChildren() do
-            if Enemy ~= client.Character then
-                self:AttackEnemy(Enemy:FindFirstChild("UpperTorso"))
-            end
-        end
-
-        if not self.FirstAttack then
-            task.wait()
-        end
-    end
-
-    function AttackModule:BladeHits()
-        self:AttackNearest()
-        self.FirstAttack = false
-    end
-
-    task.spawn(function()
-        while task.wait(Settings.ClickDelay or 0.125) do
-            if (tick() - Module.AttackCooldown) < 0.483 then continue end
-            if not Settings.AutoClick then continue end
-            if not Module.IsAlive(client.Character) then continue end
-            if not client.Character:FindFirstChildOfClass("Tool") then continue end
-
-            AttackModule:BladeHits()
-        end
-    end)
-    if game:IsLoaded() then
-    pcall(function()
-        repeat wait()
-            game:GetService("ReplicatedStorage").Effect.Container.Respawn:Destroy()
-            game:GetService("ReplicatedStorage").Effect.Container.Death:Destroy()
-        until not game:GetService("ReplicatedStorage").Effect.Container:FindFirstChild("Death") or not game:GetService("ReplicatedStorage").Effect.Container:FindFirstChild("Respawn")
-    end)
-  end
-
-    env._trash_attack = AttackModule
-    return AttackModule
-end)()
-
-local Toggle = Tabs.Sg:AddToggle("Delete Effect", {
-    Title = "Delete Effect", 
+local Toggle2 = Tabs.Sg:AddToggle("DeleteEffect", {
+    Title = "Delete Effect",
     Description = "",
-    Default = false,
-    Callback = function()
-        
+    Default = getgenv().DeleteEffect,
+    Callback = function(v)
+        getgenv().DeleteEffect = v
     end
 })
-if game:IsLoaded() then
-    pcall(function()
-        repeat wait()
-            game:GetService("ReplicatedStorage").Effect.Container.Respawn:Destroy()
-            game:GetService("ReplicatedStorage").Effect.Container.Death:Destroy()
-        until not game:GetService("ReplicatedStorage").Effect.Container:FindFirstChild("Death") or not game:GetService("ReplicatedStorage").Effect.Container:FindFirstChild("Respawn")
-    end)
+
+local function GetRoot()
+    local Character = LocalPlayer.Character
+    if not Character then
+        return nil
+    end
+
+    return Character:FindFirstChild("HumanoidRootPart")
 end
 
+task.spawn(function()
+    while task.wait(0.1) do
+        if not getgenv().FastAttack then
+            continue
+        end
+
+        pcall(function()
+            local RootPart = GetRoot()
+
+            if not RootPart then
+                return
+            end
+
+            for _, v in pairs(workspace:WaitForChild("Enemies"):GetChildren()) do
+                local Humanoid = v:FindFirstChildOfClass("Humanoid")
+                local HRP = v:FindFirstChild("HumanoidRootPart")
+
+                if Humanoid and HRP and Humanoid.Health > 0 then
+                    if (HRP.Position - RootPart.Position).Magnitude <= 60 then
+                        local HitPart =
+                            v:FindFirstChild("UpperTorso") or
+                            v:FindFirstChild("Torso") or
+                            HRP
+
+                        Net:WaitForChild("RE/RegisterAttack"):FireServer(0.01)
+                        Net:WaitForChild("RE/RegisterHit"):FireServer(HitPart, {})
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        if not getgenv().DeleteEffect then
+            continue
+        end
+
+        pcall(function()
+            local Container = ReplicatedStorage:WaitForChild("Effect"):WaitForChild("Container")
+
+            local Respawn = Container:FindFirstChild("Respawn")
+            local Death = Container:FindFirstChild("Death")
+
+            if Respawn then
+                Respawn:Destroy()
+            end
+
+            if Death then
+                Death:Destroy()
+            end
+        end)
+    end
+end)
 
 _G.AUTOHAKI = true
 spawn(function()
